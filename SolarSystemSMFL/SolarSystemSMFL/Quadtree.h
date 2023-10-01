@@ -3,7 +3,8 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
-#include "main.h"
+
+class SolarObject; // Forward declaration
 
 struct BoundingBox {
     float x, y, width, height;
@@ -20,6 +21,8 @@ public:
     Quad* SW;
     Quad* SE;
     std::vector<SolarObject*> particles;
+    sf::Vector2f centerOfMass;
+    float totalMass;
 
     Quad(const BoundingBox& bounds_);
     ~Quad();
@@ -28,5 +31,6 @@ public:
     void BatchParticles();
     void CreateChildren();
     void Draw(sf::RenderWindow& window) const;
+    sf::Vector2f ComputeForce(SolarObject* obj, float theta, float softening);
     void Reset();
 };

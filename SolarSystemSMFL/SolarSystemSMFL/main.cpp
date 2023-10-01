@@ -10,7 +10,7 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 2;
+const float GRAVITY_CONSTANT = 3.5f;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -43,26 +43,14 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b, float screenWidth,
 
 
 // Implementation for UpdateVelocity
-void SolarObject::UpdateVelocity(const std::vector<SolarObject>& particles) {
-    const float softening = 3.0f; // Prevents planets from getting infinite value when very close to another planet
+void SolarObject::UpdateVelocity(Quad& rootNode) {
+    const float softening = 3.0f;
+    const float theta = 0.85f;
 
-    for (int i = 0; i < particles.size(); i++) {
-        if (&particles[i] == this) continue;
+    Vector2f force = rootNode.ComputeForce(this, theta, softening);
 
-        // Get direction from this object to the other object
-        Vector2f direction = particles[i].position - this->position;
-        float dist = wrappedDistance2D(this->position, particles[i].position, 1920, 1080);
-        float sqDist = dist * dist;
-
-        // Introduce the softening term to avoid singularity
-        float force = GRAVITY_CONSTANT * (1 / (sqDist + softening * softening));
-
-        // Normalize direction and multiply by force to get velocity change
-        float magnitude = std::sqrt(sqDist);
-        direction /= magnitude;
-        Vector2f velocityChange = direction * force;
-        velocity += velocityChange;
-    }
+    Vector2f velocityChange = force / this->mass;
+    velocity += velocityChange;
 }
 
 // Implementation for UpdatePosition
@@ -89,7 +77,7 @@ sf::CircleShape& SolarObject::Draw() {
 SolarObject::SolarObject(int mass_, const sf::Vector2f& position_, const sf::Vector2f& velocity_, float radius_)
     : mass(mass_), position(position_), velocity(velocity_), radius(radius_) {
     shape.setRadius(radius);
-    shape.setFillColor(sf::Color(255, 255, 255, 80));
+    shape.setFillColor(sf::Color(255, 255, 255, 10));
 }
 
 float random_float(float min, float max) {
@@ -123,18 +111,18 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(100);
+    vector<SolarObject> particles(50000);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
-    const float initial_radius = 65;         // Start further from the center
+    const float initial_radius = 30;         // Start further from the center
     const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.004;     // Slightly smaller increment to space out particles more
-    const float random_radius_max = 15;      // Increase randomness in the radius
+    const float angle_increment = 0.0002;     // Slightly smaller increment to space out particles more
+    const float random_radius_max = 10;      // Increase randomness in the radius
     const float random_angle_max = 0.5; 
 
     // This constant can be adjusted to change the rotation speed of the particles
-    const float rotation_speed_factor = 0.1;
+    const float rotation_speed_factor =2;
 
     float current_angle = 0;
 
@@ -156,7 +144,7 @@ int main()
         Vector2f tangential_velocity(-sin(theta), cos(theta));
         tangential_velocity *= sqrt(r) * rotation_speed_factor;  // Using sqrt(r) ensures outer particles rotate slower
 
-        particles[i] = SolarObject(500, Vector2f(x, y), tangential_velocity, 3);
+        particles[i] = SolarObject(1, Vector2f(x, y), tangential_velocity,1);
 
         current_angle += angle_increment;
     }
@@ -180,13 +168,17 @@ int main()
 
         while (timeSinceLastUpdate > TimePerFrame)
         {
+
             timeSinceLastUpdate -= TimePerFrame;
 
             window.clear();
+
+            rootQuad.Reset();
+            rootQuad.BatchParticles();
             
             for (int i = 0; i < particles.size(); i++)
             {
-                particles[i].UpdateVelocity(particles);
+                particles[i].UpdateVelocity(rootQuad);
             }
             
             for (int i = 0; i < particles.size(); i++)
@@ -195,9 +187,7 @@ int main()
                 window.draw(particles[i].Draw());
             }
 
-            rootQuad.Reset();
-            rootQuad.BatchParticles();
-            rootQuad.Draw(window);
+          //  rootQuad.Draw(window);
 
             float deltaTime = clock.restart().asSeconds();
             timeElapsed += deltaTime;

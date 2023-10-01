@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <vector>
+#include "Quadtree.h"
 
 extern const float GRAVITY_CONSTANT;
 
@@ -15,13 +16,13 @@ float random_float(float min, float max);
 // SolarObject Class
 class SolarObject {
 public:
-    int mass;
+    float mass;
     sf::Vector2f position;
     sf::Vector2f velocity;
     float radius;
     sf::CircleShape shape;
 
-    void UpdateVelocity(const std::vector<SolarObject>& particles);
+    void UpdateVelocity(Quad& rootNode);
     void UpdatePosition();
     sf::CircleShape& Draw();
     SolarObject(int mass_ = 100,
