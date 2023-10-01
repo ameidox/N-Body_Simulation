@@ -1,0 +1,4 @@
+﻿  main.cpp
+C:\Users\AlonAm\source\repos\SolarSystemSMFL\SolarSystemSMFL\main.cpp(94,40): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\AlonAm\source\repos\SolarSystemSMFL\SolarSystemSMFL\main.cpp(99,44): warning C4305: 'initializing': truncation from 'double' to 'float'
+  SolarSystemSMFL.vcxproj -> C:\Users\AlonAm\source\repos\SolarSystemSMFL\Debug\SolarSystemSMFL.exe
