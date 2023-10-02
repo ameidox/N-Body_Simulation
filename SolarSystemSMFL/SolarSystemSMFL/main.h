@@ -20,13 +20,11 @@ public:
     sf::Vector2f position;
     sf::Vector2f velocity;
     float radius;
-    sf::CircleShape shape;
 
     void UpdateVelocity(Quad& rootNode);
     void UpdatePosition();
-    sf::CircleShape& Draw();
-    SolarObject(int mass_ = 100,
+    SolarObject(int mass_,
         const sf::Vector2f& position_ = sf::Vector2f(0, 0),
-        const sf::Vector2f& velocity_ = sf::Vector2f(0, 0),
-        float radius_ = 1);
+        const sf::Vector2f& velocity_ = sf::Vector2f(0, 0));
+
 };

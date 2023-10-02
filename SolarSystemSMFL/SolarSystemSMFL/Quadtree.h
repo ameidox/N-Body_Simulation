@@ -24,7 +24,7 @@ public:
     sf::Vector2f centerOfMass;
     float totalMass;
 
-    Quad(const BoundingBox& bounds_);
+    Quad(const BoundingBox& bounds_, const int depth_);
     ~Quad();
     bool isLeaf() const;
     bool classifyParticle(SolarObject* p);
@@ -33,4 +33,6 @@ public:
     void Draw(sf::RenderWindow& window) const;
     sf::Vector2f ComputeForce(SolarObject* obj, float theta, float softening);
     void Reset();
+private:
+    int depth;
 };

@@ -10,6 +10,8 @@
 using namespace std;
 using namespace sf;
 
+const int MAX_DEPTH = 25;
+
 BoundingBox::BoundingBox(float x_, float y_, float width_, float height_)
     : x(x_), y(y_), width(width_), height(height_) {}
 
@@ -36,8 +38,9 @@ sf::VertexArray BoundingBox::draw() const {
     return lines;
 }
 
-Quad::Quad(const BoundingBox& bounds_)
-    : bounds(bounds_) {
+Quad::Quad(const BoundingBox& bounds_ = BoundingBox(), const int depth_=0)
+    : bounds(bounds_), depth(depth_)
+{
     NW = nullptr;
     NE = nullptr;
     SW = nullptr;
@@ -45,6 +48,7 @@ Quad::Quad(const BoundingBox& bounds_)
 }
 
 Quad::~Quad() {
+
     if (NW) {
         delete NW;
         NW = nullptr;
@@ -79,18 +83,17 @@ void Quad::BatchParticles() {
 
     totalMass = (int)particles.size();
 
+    centerOfMass = Vector2f(0, 0);
+    for (const auto& particle : particles) {
+        centerOfMass += particle->position;
+    }
+    centerOfMass /= totalMass;
 
     // If number of particles exceeds a threshold, split the quad and classify particles to children
-    if (totalMass > 1) { // Threshold of 1 for now
+    if (totalMass > 1 && depth <= MAX_DEPTH) { // Threshold of 1 for now
         if (NW == nullptr) {  // To ensure that we don't create children again
             CreateChildren();
         }
-
-        centerOfMass = Vector2f(0, 0);
-        for (const auto& particle : particles) {
-            centerOfMass += particle->position;
-        }
-        centerOfMass /= totalMass;
 
         for (const auto& particle : particles) {
             NW->classifyParticle(particle) ||
@@ -104,14 +107,6 @@ void Quad::BatchParticles() {
         SW->BatchParticles();
         SE->BatchParticles();
     }
-    else if (totalMass == 1) {
-        centerOfMass = particles[0]->position;
-    }
-    else {
-        centerOfMass = Vector2f(0, 0);
-    }
-
-
 
 }
 
@@ -119,10 +114,10 @@ void Quad::CreateChildren() {
     float halfWidth = bounds.width / 2;
     float halfHeight = bounds.height / 2;
 
-    NW = new Quad(BoundingBox(bounds.x, bounds.y, halfWidth, halfHeight));
-    NE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y, halfWidth, halfHeight));
-    SW = new Quad(BoundingBox(bounds.x, bounds.y + halfHeight, halfWidth, halfHeight));
-    SE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y + halfHeight, halfWidth, halfHeight));
+    NW = new Quad(BoundingBox(bounds.x, bounds.y, halfWidth, halfHeight), depth+1);
+    NE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y, halfWidth, halfHeight), depth + 1);
+    SW = new Quad(BoundingBox(bounds.x, bounds.y + halfHeight, halfWidth, halfHeight), depth + 1);
+    SE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y + halfHeight, halfWidth, halfHeight) ,depth + 1);
 }
 
 void Quad::Draw(sf::RenderWindow& window) const {
@@ -140,7 +135,7 @@ void Quad::Draw(sf::RenderWindow& window) const {
 Vector2f Quad::ComputeForce(SolarObject* obj, float theta, float softening) {
     Vector2f force(0, 0);
 
-    if (this->isLeaf()) {
+    if (this->isLeaf() || this->depth == MAX_DEPTH) {
         for (const auto& particle : particles) {
             if (particle == obj) continue;
 
@@ -186,6 +181,9 @@ Vector2f Quad::ComputeForce(SolarObject* obj, float theta, float softening) {
 
 
 void Quad::Reset() {
+
+    if (depth != 0) { return; }
+
     if (NW) {
         delete NW;
         NW = nullptr;

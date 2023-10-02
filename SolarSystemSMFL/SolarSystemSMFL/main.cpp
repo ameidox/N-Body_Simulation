@@ -10,7 +10,7 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 3.5f;
+const float GRAVITY_CONSTANT = 1.8;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -44,7 +44,7 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b, float screenWidth,
 
 // Implementation for UpdateVelocity
 void SolarObject::UpdateVelocity(Quad& rootNode) {
-    const float softening = 3.0f;
+    const float softening = 3.5f;
     const float theta = 0.85f;
 
     Vector2f force = rootNode.ComputeForce(this, theta, softening);
@@ -66,18 +66,10 @@ void SolarObject::UpdatePosition() {
     else if (position.y > 1000) position.y -= 1000;
 }
 
-// Implementation for Draw
-sf::CircleShape& SolarObject::Draw() {
-    shape.setPosition(position.x - radius, position.y - radius);
-    return shape;
-    return shape;
-}
-
 // Implementation for the constructor
-SolarObject::SolarObject(int mass_, const sf::Vector2f& position_, const sf::Vector2f& velocity_, float radius_)
-    : mass(mass_), position(position_), velocity(velocity_), radius(radius_) {
-    shape.setRadius(radius);
-    shape.setFillColor(sf::Color(255, 255, 255, 10));
+SolarObject::SolarObject(int mass_=1, const sf::Vector2f& position_, const sf::Vector2f& velocity_)
+    : mass(mass_), position(position_), velocity(velocity_) {
+
 }
 
 float random_float(float min, float max) {
@@ -111,18 +103,18 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(50000);
+    vector<SolarObject> particles(200000);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
     const float initial_radius = 30;         // Start further from the center
     const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.0002;     // Slightly smaller increment to space out particles more
+    const float angle_increment = 0.00005;     // Slightly smaller increment to space out particles more
     const float random_radius_max = 10;      // Increase randomness in the radius
     const float random_angle_max = 0.5; 
 
     // This constant can be adjusted to change the rotation speed of the particles
-    const float rotation_speed_factor =2;
+    const float rotation_speed_factor =0.2;
 
     float current_angle = 0;
 
@@ -144,15 +136,18 @@ int main()
         Vector2f tangential_velocity(-sin(theta), cos(theta));
         tangential_velocity *= sqrt(r) * rotation_speed_factor;  // Using sqrt(r) ensures outer particles rotate slower
 
-        particles[i] = SolarObject(1, Vector2f(x, y), tangential_velocity,1);
+        particles[i] = SolarObject(1, Vector2f(x, y), tangential_velocity);
 
         current_angle += angle_increment;
     }
 
-    Quad rootQuad(BoundingBox(0, 0, 1000, 1000));
+    Quad rootQuad(BoundingBox(0, 0, 1000, 1000), 0);
     for (auto& particle : particles) {
         rootQuad.particles.push_back(&particle);
     }
+    rootQuad.BatchParticles();
+
+    sf::VertexArray particlesVertexArray(sf::Points, particles.size());
 
     while (window.isOpen())
     {
@@ -168,24 +163,24 @@ int main()
 
         while (timeSinceLastUpdate > TimePerFrame)
         {
-
             timeSinceLastUpdate -= TimePerFrame;
 
             window.clear();
-
             rootQuad.Reset();
             rootQuad.BatchParticles();
-            
-            for (int i = 0; i < particles.size(); i++)
-            {
-                particles[i].UpdateVelocity(rootQuad);
+
+            for (auto& particle : particles) {
+                particle.UpdateVelocity(rootQuad);
             }
-            
-            for (int i = 0; i < particles.size(); i++)
-            {
-                particles[i].UpdatePosition();
-                window.draw(particles[i].Draw());
+
+            int index = 0;
+            for (auto& particle : particles) {
+                particle.UpdatePosition();
+                particlesVertexArray[index].position = particle.position;
+                particlesVertexArray[index].color = sf::Color(255, 255, 255, 60);
+                ++index;
             }
+            window.draw(particlesVertexArray);
 
           //  rootQuad.Draw(window);
 
