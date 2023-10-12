@@ -103,7 +103,7 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(200000);
+    vector<SolarObject> particles(20000);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
