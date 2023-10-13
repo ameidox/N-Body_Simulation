@@ -135,36 +135,38 @@ void Quad::Draw(sf::RenderWindow& window) const {
 Vector2f Quad::ComputeForce(SolarObject* obj, float theta, float softening) {
     Vector2f force(0, 0);
 
+    const float HALF_DIMENSION = 500.0f;
+    const float DOMAIN_SIZE = 1000.0f;
+
     if (this->isLeaf() || this->depth == MAX_DEPTH) {
         for (const auto& particle : particles) {
             if (particle == obj) continue;
 
-            // Correctly compute the shortest direction considering the wrap-around
             Vector2f direction = particle->position - obj->position;
-            direction.x = std::fmod(direction.x + 1000 / 2, 1000) - 1000 / 2;  // for wrap-around along x
-            direction.y = std::fmod(direction.y + 1000 / 2, 1000) - 1000 / 2;  // for wrap-around along y
+            if (direction.x < -HALF_DIMENSION) direction.x += DOMAIN_SIZE;
+            else if (direction.x > HALF_DIMENSION) direction.x -= DOMAIN_SIZE;
+            if (direction.y < -HALF_DIMENSION) direction.y += DOMAIN_SIZE;
+            else if (direction.y > HALF_DIMENSION) direction.y -= DOMAIN_SIZE;
 
             float sqDist = squaredMagnitude(direction);
-
-            float f = GRAVITY_CONSTANT * (1 / (sqDist + softening * softening));
             float magnitude = std::sqrt(sqDist);
-            direction /= magnitude;
-            force += direction * f;
+            float f_scalar = GRAVITY_CONSTANT * (1 / (sqDist + softening * softening));
+            force += (direction / magnitude) * f_scalar;
         }
     }
     else {
-        float d = wrappedDistance2D(obj->position, this->centerOfMass, 1000, 1000);
+        float d = wrappedDistance2D(obj->position, this->centerOfMass);
         if (this->bounds.width / d < theta) {
             Vector2f direction = this->centerOfMass - obj->position;
-            direction.x = std::fmod(direction.x + 1000 / 2, 1000) - 1000 / 2;
-            direction.y = std::fmod(direction.y + 1000 / 2, 1000) - 1000 / 2;
+            if (direction.x < -HALF_DIMENSION) direction.x += DOMAIN_SIZE;
+            else if (direction.x > HALF_DIMENSION) direction.x -= DOMAIN_SIZE;
+            if (direction.y < -HALF_DIMENSION) direction.y += DOMAIN_SIZE;
+            else if (direction.y > HALF_DIMENSION) direction.y -= DOMAIN_SIZE;
 
             float sqDist = squaredMagnitude(direction);
-
-            float f = GRAVITY_CONSTANT * this->totalMass * (1 / (sqDist + softening * softening));
             float magnitude = std::sqrt(sqDist);
-            direction /= magnitude;
-            force = direction * f;
+            float f_scalar = GRAVITY_CONSTANT * this->totalMass * (1 / (sqDist + softening * softening));
+            force += (direction / magnitude) * f_scalar;
         }
         else {
             if (NW) force += NW->ComputeForce(obj, theta, softening);
@@ -175,7 +177,6 @@ Vector2f Quad::ComputeForce(SolarObject* obj, float theta, float softening) {
     }
     return force;
 }
-
 
 
 

@@ -10,7 +10,7 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 1.8;
+const float GRAVITY_CONSTANT = 1.8f;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -34,9 +34,20 @@ float wrappedDistance(float pos1, float pos2, float maxDimension) {
     return maxDimension - directDist;
 }
 
-float wrappedDistance2D(const Vector2f& a, const Vector2f& b, float screenWidth, float screenHeight) {
-    float xDist = wrappedDistance(a.x, b.x, screenWidth);
-    float yDist = wrappedDistance(a.y, b.y, screenHeight);
+float wrappedDistance2D(const Vector2f& a, const Vector2f& b) {
+    const float DOMAIN_SIZE = 1000.0f;
+    const float HALF_DIMENSION = 500.0f;
+
+    auto wrappedDistanceComponent = [DOMAIN_SIZE, HALF_DIMENSION](float comp1, float comp2) -> float {
+        float dist = comp1 - comp2;
+        if (dist < -HALF_DIMENSION) dist += DOMAIN_SIZE;
+        else if (dist > HALF_DIMENSION) dist -= DOMAIN_SIZE;
+        return dist;
+    };
+
+    float xDist = wrappedDistanceComponent(a.x, b.x);
+    float yDist = wrappedDistanceComponent(a.y, b.y);
+
     return std::sqrt(xDist * xDist + yDist * yDist);
 }
 
@@ -45,7 +56,7 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b, float screenWidth,
 // Implementation for UpdateVelocity
 void SolarObject::UpdateVelocity(Quad& rootNode) {
     const float softening = 3.5f;
-    const float theta = 0.85f;
+    const float theta = 0.5f;
 
     Vector2f force = rootNode.ComputeForce(this, theta, softening);
 
@@ -103,13 +114,13 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(20000);
+    vector<SolarObject> particles(1000);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
     const float initial_radius = 30;         // Start further from the center
     const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.00005;     // Slightly smaller increment to space out particles more
+    const float angle_increment = 0.0002;     // Slightly smaller increment to space out particles more
     const float random_radius_max = 10;      // Increase randomness in the radius
     const float random_angle_max = 0.5; 
 
@@ -177,7 +188,7 @@ int main()
             for (auto& particle : particles) {
                 particle.UpdatePosition();
                 particlesVertexArray[index].position = particle.position;
-                particlesVertexArray[index].color = sf::Color(255, 255, 255, 60);
+                particlesVertexArray[index].color = sf::Color(255, 255, 255, 70);
                 ++index;
             }
             window.draw(particlesVertexArray);
