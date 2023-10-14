@@ -3,6 +3,7 @@
 #include <cmath>
 #include<array> 
 #include <vector>
+#include <stack>
 #include "Quadtree.h"
 #include "main.h"
 
@@ -57,6 +58,10 @@ void Quadtree::draw(sf::RenderWindow& window) const {
     if (root) {
         root->draw(window);
     }
+}
+
+sf::Vector2f Quadtree::computeForce(const SolarObject& obj, float theta, float softening) const {
+    return root->computeForce(obj, theta, softening);
 }
 
 void Quadtree::clear() {
@@ -163,13 +168,13 @@ void Quadtree::Node::placeInChild(SolarObject* particle) {
 
 void Quadtree::Node::draw(sf::RenderWindow& window) const {
     // Draw the bounding box for this Node
-   // window.draw(bounds.draw());
+   window.draw(bounds.draw());
 
     CircleShape circle;
     circle.setPosition(centerOfMass);
     circle.setRadius(totalMass / 2.0f);
     circle.setFillColor(Color(255, 0, 255, 255));
-    window.draw(circle);
+   // window.draw(circle);
     // Recursively draw children if they exist
     if (NW) NW->draw(window);
     if (NE) NE->draw(window);
@@ -185,6 +190,62 @@ void Quadtree::Node::clear() {
 
     particles.clear();
 }
+
+void wrapDirection(Vector2f& direction, float halfDim, float domainSize) {
+    if (direction.x < -halfDim) direction.x += domainSize;
+    else if (direction.x > halfDim) direction.x -= domainSize;
+    if (direction.y < -halfDim) direction.y += domainSize;
+    else if (direction.y > halfDim) direction.y -= domainSize;
+}
+
+Vector2f Quadtree::Node::computeForce(const SolarObject& obj, float theta, float softening) const {
+    Vector2f force(0, 0);
+    const float HALF_DIMENSION = 500.0f;
+    const float DOMAIN_SIZE = 1000.0f;
+
+    if (totalMass < THRESHOLD) {
+        for (const auto& particle : particles) {
+            if (particle == &obj) continue;
+
+            Vector2f direction = particle->position - obj.position;
+            wrapDirection(direction, HALF_DIMENSION, DOMAIN_SIZE);
+
+            float sqDist = squaredMagnitude(direction);
+            float magnitude = std::sqrt(sqDist);
+            float f_scalar = GRAVITY_CONSTANT * (1 / (sqDist + softening * softening));
+
+            force += (direction / magnitude) * f_scalar;
+        }
+    }
+    else {
+        float d = wrappedDistance2D(obj.position, this->centerOfMass);
+        if (this->bounds.width / d < theta) {
+            Vector2f direction = this->centerOfMass - obj.position;
+            wrapDirection(direction, HALF_DIMENSION, DOMAIN_SIZE);
+
+            float sqDist = squaredMagnitude(direction);
+            float magnitude = std::sqrt(sqDist);
+            float f_scalar = GRAVITY_CONSTANT * this->totalMass * (1 / (sqDist + softening * softening));
+            force += (direction / magnitude) * f_scalar;
+        }
+        else {
+            // Sum forces from all children
+            Vector2f forcesFromChildren[4] = {
+                NW ? NW->computeForce(obj, theta, softening) : Vector2f(0, 0),
+                NE ? NE->computeForce(obj, theta, softening) : Vector2f(0, 0),
+                SW ? SW->computeForce(obj, theta, softening) : Vector2f(0, 0),
+                SE ? SE->computeForce(obj, theta, softening) : Vector2f(0, 0)
+            };
+
+            for (int i = 0; i < 4; i++) {
+                force += forcesFromChildren[i];
+            }
+        }
+    }
+
+    return force;
+}
+
 
 #pragma endregion
 

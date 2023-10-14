@@ -10,7 +10,9 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 2.5f;
+const float GRAVITY_CONSTANT = 1.8f;
+const float SOFTNING = 3.5f;
+const float THETA = 0.5f;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -55,13 +57,13 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b) {
 
 // Implementation for UpdateVelocity
 void SolarObject::UpdateVelocity(Quadtree& tree) {
-    const float softening = 3.5f;
-    const float theta = 1.0f;
 
-  //  Vector2f force = rootNode.ComputeForce(this, theta, softening);
+    Vector2f force = tree.computeForce(*this, THETA, SOFTNING);
 
-  //  Vector2f velocityChange = force / this->mass;
-  //  velocity += velocityChange;
+//    cout << force.x << " " << force.y << endl;
+
+    Vector2f velocityChange = force / this->mass;
+    velocity += velocityChange;
 }
 
 // Implementation for UpdatePosition
@@ -114,7 +116,7 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(20);
+    vector<SolarObject> particles(1000);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
@@ -176,21 +178,23 @@ int main()
 
             tree.clear();
             for (auto& particle : particles) {
-               // particle.UpdateVelocity(rootQuad);
-
                 tree.insert(&particle);
+            }
+
+            for (auto& particle : particles) {
+                particle.UpdateVelocity(tree);
             }
 
             int index = 0;
             for (auto& particle : particles) {
                 particle.UpdatePosition();
                 particlesVertexArray[index].position = particle.position;
-                particlesVertexArray[index].color = sf::Color(255, 255, 255,255);
+                particlesVertexArray[index].color = sf::Color(255, 255, 255,50);
                 ++index;
             }
             window.draw(particlesVertexArray);
 
-            tree.draw(window);
+          //  tree.draw(window);
 
             float deltaTime = clock.restart().asSeconds();
             timeElapsed += deltaTime;

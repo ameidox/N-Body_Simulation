@@ -34,7 +34,7 @@ private:
         void placeInChild(SolarObject* particle);
         void clear();
         void updateCenterOfMassAndTotalMass();
-      //  sf::Vector2f computeForce(const SolarObject& particle) const;
+        sf::Vector2f computeForce(const SolarObject& obj, float theta, float softening) const;
 
         // Debug
 
@@ -49,6 +49,5 @@ public:
     void insert(SolarObject* particle);
     void draw(sf::RenderWindow& window) const;
     void clear();
-    //sf::Vector2f computeForce(const SolarObject& particle) const;
-    // Any other public methods you might need...
+    sf::Vector2f computeForce(const SolarObject& obj, float theta, float softening) const;
 };
