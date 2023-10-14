@@ -21,7 +21,7 @@ public:
     sf::Vector2f velocity;
     float radius;
 
-    void UpdateVelocity(Quad& rootNode);
+    void UpdateVelocity(Quadtree& tree);
     void UpdatePosition();
     SolarObject(int mass_,
         const sf::Vector2f& position_ = sf::Vector2f(0, 0),

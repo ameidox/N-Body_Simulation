@@ -10,7 +10,7 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 1.8f;
+const float GRAVITY_CONSTANT = 2.5f;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -54,14 +54,14 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b) {
 
 
 // Implementation for UpdateVelocity
-void SolarObject::UpdateVelocity(Quad& rootNode) {
+void SolarObject::UpdateVelocity(Quadtree& tree) {
     const float softening = 3.5f;
-    const float theta = 0.5f;
+    const float theta = 1.0f;
 
-    Vector2f force = rootNode.ComputeForce(this, theta, softening);
+  //  Vector2f force = rootNode.ComputeForce(this, theta, softening);
 
-    Vector2f velocityChange = force / this->mass;
-    velocity += velocityChange;
+  //  Vector2f velocityChange = force / this->mass;
+  //  velocity += velocityChange;
 }
 
 // Implementation for UpdatePosition
@@ -114,18 +114,18 @@ int main()
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(1000);
+    vector<SolarObject> particles(20);
 
     const float center_x = 1000/2;
     const float center_y = 1000/2;
     const float initial_radius = 30;         // Start further from the center
     const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.0002;     // Slightly smaller increment to space out particles more
-    const float random_radius_max = 10;      // Increase randomness in the radius
-    const float random_angle_max = 0.5; 
+    const float angle_increment = 0.00000155;     // Slightly smaller increment to space out particles more
+    const float random_radius_max = 60;      // Increase randomness in the radius
+    const float random_angle_max = 3; 
 
     // This constant can be adjusted to change the rotation speed of the particles
-    const float rotation_speed_factor =0.2;
+    const float rotation_speed_factor =0.2f;
 
     float current_angle = 0;
 
@@ -152,11 +152,7 @@ int main()
         current_angle += angle_increment;
     }
 
-    Quad rootQuad(BoundingBox(0, 0, 1000, 1000), 0);
-    for (auto& particle : particles) {
-        rootQuad.particles.push_back(&particle);
-    }
-    rootQuad.BatchParticles();
+    Quadtree tree(BoundingBox(0, 0, 1000, 1000));
 
     sf::VertexArray particlesVertexArray(sf::Points, particles.size());
 
@@ -177,23 +173,24 @@ int main()
             timeSinceLastUpdate -= TimePerFrame;
 
             window.clear();
-            rootQuad.Reset();
-            rootQuad.BatchParticles();
 
+            tree.clear();
             for (auto& particle : particles) {
-                particle.UpdateVelocity(rootQuad);
+               // particle.UpdateVelocity(rootQuad);
+
+                tree.insert(&particle);
             }
 
             int index = 0;
             for (auto& particle : particles) {
                 particle.UpdatePosition();
                 particlesVertexArray[index].position = particle.position;
-                particlesVertexArray[index].color = sf::Color(255, 255, 255, 70);
+                particlesVertexArray[index].color = sf::Color(255, 255, 255,255);
                 ++index;
             }
             window.draw(particlesVertexArray);
 
-          //  rootQuad.Draw(window);
+            tree.draw(window);
 
             float deltaTime = clock.restart().asSeconds();
             timeElapsed += deltaTime;

@@ -13,26 +13,42 @@ struct BoundingBox {
     sf::VertexArray draw() const;
 };
 
-class Quad {
-public:
-    BoundingBox bounds;
-    Quad* NW;
-    Quad* NE;
-    Quad* SW;
-    Quad* SE;
-    std::vector<SolarObject*> particles;
-    sf::Vector2f centerOfMass;
-    float totalMass;
-
-    Quad(const BoundingBox& bounds_, const int depth_);
-    ~Quad();
-    bool isLeaf() const;
-    bool classifyParticle(SolarObject* p);
-    void BatchParticles();
-    void CreateChildren();
-    void Draw(sf::RenderWindow& window) const;
-    sf::Vector2f ComputeForce(SolarObject* obj, float theta, float softening);
-    void Reset();
+class Quadtree {
 private:
-    int depth;
+    class Node {
+    public:
+        BoundingBox bounds;       // Boundary of the node
+        std::vector<SolarObject*> particles; // Particles within this node
+        std::unique_ptr<Node> NW; // Pointers to child nodes
+        std::unique_ptr<Node> NE;
+        std::unique_ptr<Node> SW;
+        std::unique_ptr<Node> SE;
+        sf::Vector2f centerOfMass;    // Center of mass of particles within node
+        float totalMass;          // Total mass of particles within node
+        int depth;
+
+        Node(const BoundingBox& bounds_, const int depth_);
+
+        void insert(SolarObject* particle);
+        void subdivide();
+        void placeInChild(SolarObject* particle);
+        void clear();
+        void updateCenterOfMassAndTotalMass();
+      //  sf::Vector2f computeForce(const SolarObject& particle) const;
+
+        // Debug
+
+        void draw(sf::RenderWindow& window) const;
+    };
+
+    std::unique_ptr<Node> root; // Root node of the quadtree
+
+public:
+    Quadtree(const BoundingBox& bounds);
+
+    void insert(SolarObject* particle);
+    void draw(sf::RenderWindow& window) const;
+    void clear();
+    //sf::Vector2f computeForce(const SolarObject& particle) const;
+    // Any other public methods you might need...
 };

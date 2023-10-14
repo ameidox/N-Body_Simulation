@@ -10,8 +10,10 @@
 using namespace std;
 using namespace sf;
 
-const int MAX_DEPTH = 25;
+const int MAX_DEPTH = 105;
+const int THRESHOLD = 1;
 
+#pragma region BoundingBox
 BoundingBox::BoundingBox(float x_, float y_, float width_, float height_)
     : x(x_), y(y_), width(width_), height(height_) {}
 
@@ -38,167 +40,153 @@ sf::VertexArray BoundingBox::draw() const {
     return lines;
 }
 
-Quad::Quad(const BoundingBox& bounds_ = BoundingBox(), const int depth_=0)
-    : bounds(bounds_), depth(depth_)
+#pragma endregion
+
+#pragma region Quadtree
+
+Quadtree::Quadtree(const BoundingBox& bounds)
+{
+    root = std::make_unique<Node>(bounds, 0);
+}
+ 
+void Quadtree::insert(SolarObject* particle) {
+    root->insert(particle);
+}
+
+void Quadtree::draw(sf::RenderWindow& window) const {
+    if (root) {
+        root->draw(window);
+    }
+}
+
+void Quadtree::clear() {
+    root->clear();
+}
+
+#pragma endregion
+
+#pragma region Node
+
+Quadtree::Node::Node(const BoundingBox& bounds_, const int depth_)
+ : bounds(bounds_), depth(depth_)
 {
     NW = nullptr;
     NE = nullptr;
-    SW = nullptr;
     SE = nullptr;
+    SW = nullptr;
 }
 
-Quad::~Quad() {
+void Quadtree::Node::insert(SolarObject* particle)
+{
+    if (!bounds.contains(particle->position)) return;
 
-    if (NW) {
-        delete NW;
-        NW = nullptr;
-    }
-    if (NE) {
-        delete NE;
-        NE = nullptr;
-    }
-    if (SW) {
-        delete SW;
-        SW = nullptr;
-    }
-    if (SE) {
-        delete SE;
-        SE = nullptr;
-    }
-}
-
-bool Quad::isLeaf() const {
-    return particles.size() <= 1;
-}
-
-bool Quad::classifyParticle(SolarObject* p) {
-    if (!bounds.contains(p->position)) {
-        return false;  // Particle doesn't belong here
-    }
-    particles.push_back(p);
-    return true;
-}
-
-void Quad::BatchParticles() {
-
-    totalMass = (int)particles.size();
-
-    centerOfMass = Vector2f(0, 0);
-    for (const auto& particle : particles) {
-        centerOfMass += particle->position;
-    }
-    centerOfMass /= totalMass;
-
-    // If number of particles exceeds a threshold, split the quad and classify particles to children
-    if (totalMass > 1 && depth <= MAX_DEPTH) { // Threshold of 1 for now
-        if (NW == nullptr) {  // To ensure that we don't create children again
-            CreateChildren();
+    // Check if node is leaf (number of particles inside of it is lesser than the threshold)
+    if (NW == nullptr) {
+        if (particles.size() < THRESHOLD) {
+            // Add partical to list
+            particles.push_back(particle);
         }
-
-        for (const auto& particle : particles) {
-            NW->classifyParticle(particle) ||
-            NE->classifyParticle(particle) ||
-            SW->classifyParticle(particle) ||
-            SE->classifyParticle(particle);
+        else 
+        {
+            subdivide();
+            // If there are more particals than the threshold subdivide the node
+            for (SolarObject* existingParticle : particles) {
+                // Re-insert existing particles into the correct child node
+                placeInChild(existingParticle);
+            }
+            // Clear the particles vector of the current node
+            particles.clear();
+            // Insert the new particle into the correct child node
+            placeInChild(particle);
         }
-        // Recursively batch particles for children
-        NW->BatchParticles();
-        NE->BatchParticles();
-        SW->BatchParticles();
-        SE->BatchParticles();
+    }
+    else 
+    {
+        // If it's not a leaf assign the partical to one of its children nodes
+        placeInChild(particle);
     }
 
+    updateCenterOfMassAndTotalMass();
 }
 
-void Quad::CreateChildren() {
+void Quadtree::Node::updateCenterOfMassAndTotalMass() {
+    Vector2f newCenterOfMass(0, 0);
+    float newTotalMass = 0;
+
+    // Sum up the contributions from the node's particles
+    for (const auto& particle : this->particles) {
+        newCenterOfMass += particle->position * particle->mass;
+        newTotalMass += particle->mass;
+    }
+
+    // If the node has children, sum up their contributions too
+    if (this->NW) {
+        newCenterOfMass += this->NW->centerOfMass * this->NW->totalMass;
+        newTotalMass += this->NW->totalMass;
+
+        newCenterOfMass += this->NE->centerOfMass * this->NE->totalMass;
+        newTotalMass += this->NE->totalMass;
+
+        newCenterOfMass += this->SW->centerOfMass * this->SW->totalMass;
+        newTotalMass += this->SW->totalMass;
+
+        newCenterOfMass += this->SE->centerOfMass * this->SE->totalMass;
+        newTotalMass += this->SE->totalMass;
+    }
+
+
+    // Divide to get the weighted average
+    if (newTotalMass != 0) {
+        newCenterOfMass /= newTotalMass;
+    }
+
+    this->centerOfMass = newCenterOfMass;
+    this->totalMass = newTotalMass;
+}
+
+void Quadtree::Node::subdivide() {
     float halfWidth = bounds.width / 2;
     float halfHeight = bounds.height / 2;
 
-    NW = new Quad(BoundingBox(bounds.x, bounds.y, halfWidth, halfHeight), depth+1);
-    NE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y, halfWidth, halfHeight), depth + 1);
-    SW = new Quad(BoundingBox(bounds.x, bounds.y + halfHeight, halfWidth, halfHeight), depth + 1);
-    SE = new Quad(BoundingBox(bounds.x + halfWidth, bounds.y + halfHeight, halfWidth, halfHeight) ,depth + 1);
+    NW = std::make_unique<Node>(BoundingBox(bounds.x, bounds.y, halfWidth, halfHeight), depth + 1);
+    NE = std::make_unique<Node>(BoundingBox(bounds.x + halfWidth, bounds.y, halfWidth, halfHeight), depth + 1);
+    SW = std::make_unique<Node>(BoundingBox(bounds.x, bounds.y + halfHeight, halfWidth, halfHeight), depth + 1);
+    SE = std::make_unique<Node>(BoundingBox(bounds.x + halfWidth, bounds.y + halfHeight, halfWidth, halfHeight), depth+1);
 }
 
-void Quad::Draw(sf::RenderWindow& window) const {
-
-    // Draw the bounding box for this Quad
-    window.draw(bounds.draw());
-
-    // Recursively draw children (if they exist)
-    if (NW) NW->Draw(window);
-    if (NE) NE->Draw(window);
-    if (SW) SW->Draw(window);
-    if (SE) SE->Draw(window);
+void Quadtree::Node::placeInChild(SolarObject* particle) {
+    if (NW->bounds.contains(particle->position)) NW->insert(particle);
+    else if (NE->bounds.contains(particle->position)) NE->insert(particle);
+    else if (SW->bounds.contains(particle->position)) SW->insert(particle);
+    else if (SE->bounds.contains(particle->position)) SE->insert(particle);
 }
 
-Vector2f Quad::ComputeForce(SolarObject* obj, float theta, float softening) {
-    Vector2f force(0, 0);
+void Quadtree::Node::draw(sf::RenderWindow& window) const {
+    // Draw the bounding box for this Node
+   // window.draw(bounds.draw());
 
-    const float HALF_DIMENSION = 500.0f;
-    const float DOMAIN_SIZE = 1000.0f;
-
-    if (this->isLeaf() || this->depth == MAX_DEPTH) {
-        for (const auto& particle : particles) {
-            if (particle == obj) continue;
-
-            Vector2f direction = particle->position - obj->position;
-            if (direction.x < -HALF_DIMENSION) direction.x += DOMAIN_SIZE;
-            else if (direction.x > HALF_DIMENSION) direction.x -= DOMAIN_SIZE;
-            if (direction.y < -HALF_DIMENSION) direction.y += DOMAIN_SIZE;
-            else if (direction.y > HALF_DIMENSION) direction.y -= DOMAIN_SIZE;
-
-            float sqDist = squaredMagnitude(direction);
-            float magnitude = std::sqrt(sqDist);
-            float f_scalar = GRAVITY_CONSTANT * (1 / (sqDist + softening * softening));
-            force += (direction / magnitude) * f_scalar;
-        }
-    }
-    else {
-        float d = wrappedDistance2D(obj->position, this->centerOfMass);
-        if (this->bounds.width / d < theta) {
-            Vector2f direction = this->centerOfMass - obj->position;
-            if (direction.x < -HALF_DIMENSION) direction.x += DOMAIN_SIZE;
-            else if (direction.x > HALF_DIMENSION) direction.x -= DOMAIN_SIZE;
-            if (direction.y < -HALF_DIMENSION) direction.y += DOMAIN_SIZE;
-            else if (direction.y > HALF_DIMENSION) direction.y -= DOMAIN_SIZE;
-
-            float sqDist = squaredMagnitude(direction);
-            float magnitude = std::sqrt(sqDist);
-            float f_scalar = GRAVITY_CONSTANT * this->totalMass * (1 / (sqDist + softening * softening));
-            force += (direction / magnitude) * f_scalar;
-        }
-        else {
-            if (NW) force += NW->ComputeForce(obj, theta, softening);
-            if (NE) force += NE->ComputeForce(obj, theta, softening);
-            if (SW) force += SW->ComputeForce(obj, theta, softening);
-            if (SE) force += SE->ComputeForce(obj, theta, softening);
-        }
-    }
-    return force;
+    CircleShape circle;
+    circle.setPosition(centerOfMass);
+    circle.setRadius(totalMass / 2.0f);
+    circle.setFillColor(Color(255, 0, 255, 255));
+    window.draw(circle);
+    // Recursively draw children if they exist
+    if (NW) NW->draw(window);
+    if (NE) NE->draw(window);
+    if (SW) SW->draw(window);
+    if (SE) SE->draw(window);
 }
 
+void Quadtree::Node::clear() {
+    NW.reset();
+    NE.reset();
+    SW.reset();
+    SE.reset();
 
-
-
-void Quad::Reset() {
-
-    if (depth != 0) { return; }
-
-    if (NW) {
-        delete NW;
-        NW = nullptr;
-    }
-    if (NE) {
-        delete NE;
-        NE = nullptr;
-    }
-    if (SW) {
-        delete SW;
-        SW = nullptr;
-    }
-    if (SE) {
-        delete SE;
-        SE = nullptr;
-    }
+    particles.clear();
 }
+
+#pragma endregion
+
+
+
