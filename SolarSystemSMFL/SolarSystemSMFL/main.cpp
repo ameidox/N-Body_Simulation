@@ -4,15 +4,16 @@
 #include<array> 
 #include <random>
 #include <vector>
+#include <thread>
 #include "Quadtree.h"
 #include "main.h"
 
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 1.8f;
-const float SOFTNING = 3.5f;
-const float THETA = 0.5f;
+const float GRAVITY_CONSTANT = 1.75f;
+const float SOFTNING = 4.0f;
+const float THETA = 1.0f;
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -91,8 +92,6 @@ float random_float(float min, float max) {
     return distribution(generator);
 }
 
-
-
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1000, 1000), "N-Body simulation");
@@ -107,27 +106,27 @@ int main()
     // Declare a text shape
     sf::Text fpsText;
     fpsText.setFont(font);
-    fpsText.setCharacterSize(24); 
+    fpsText.setCharacterSize(24);
     fpsText.setFillColor(sf::Color::White);
-    fpsText.setPosition(10, 10); 
+    fpsText.setPosition(10, 10);
 
     sf::Clock clock;  // Clock to measure time since the last update
     const sf::Time TimePerFrame = sf::seconds(1.0f / 30.0f);  // 30 updates per second
     sf::Time timeSinceLastUpdate = sf::Time::Zero;
 
 
-    vector<SolarObject> particles(1000);
+    vector<SolarObject> particles(50000);
 
-    const float center_x = 1000/2;
-    const float center_y = 1000/2;
+    const float center_x = 1000 / 2;
+    const float center_y = 1000 / 2;
     const float initial_radius = 30;         // Start further from the center
     const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.00000155;     // Slightly smaller increment to space out particles more
+    const float angle_increment = 0.0000155;     // Slightly smaller increment to space out particles more
     const float random_radius_max = 60;      // Increase randomness in the radius
-    const float random_angle_max = 3; 
+    const float random_angle_max = 3;
 
     // This constant can be adjusted to change the rotation speed of the particles
-    const float rotation_speed_factor =0.2f;
+    const float rotation_speed_factor = 0.05f;
 
     float current_angle = 0;
 
@@ -158,6 +157,9 @@ int main()
 
     sf::VertexArray particlesVertexArray(sf::Points, particles.size());
 
+    const int numThreads = std::thread::hardware_concurrency(); // Get the number of threads
+    std::vector<std::thread> threads(numThreads);
+
     while (window.isOpen())
     {
         sf::Event event;
@@ -172,29 +174,36 @@ int main()
 
         while (timeSinceLastUpdate > TimePerFrame)
         {
-            timeSinceLastUpdate -= TimePerFrame;
-
             window.clear();
-
             tree.clear();
+
             for (auto& particle : particles) {
                 tree.insert(&particle);
             }
 
-            for (auto& particle : particles) {
-                particle.UpdateVelocity(tree);
+            int particlesPerThread = particles.size() / numThreads;
+            for (int i = 0; i < numThreads; ++i) {
+                int startIndex = i * particlesPerThread;
+                int endIndex = (i == numThreads - 1) ? particles.size() : startIndex + particlesPerThread;
+
+                threads[i] = std::thread([&particles, &tree, startIndex, endIndex]() {
+                    for (int j = startIndex; j < endIndex; ++j) {
+                        particles[j].UpdateVelocity(tree);
+                        particles[j].UpdatePosition();
+                    }
+                    });
+            }
+            for (auto& thread : threads) {
+                thread.join();
             }
 
             int index = 0;
             for (auto& particle : particles) {
-                particle.UpdatePosition();
                 particlesVertexArray[index].position = particle.position;
-                particlesVertexArray[index].color = sf::Color(255, 255, 255,50);
+                particlesVertexArray[index].color = sf::Color(255, 255, 255, 100);
                 ++index;
             }
             window.draw(particlesVertexArray);
-
-          //  tree.draw(window);
 
             float deltaTime = clock.restart().asSeconds();
             timeElapsed += deltaTime;
@@ -210,6 +219,7 @@ int main()
 
             window.display();
         }
+
 
     }
 

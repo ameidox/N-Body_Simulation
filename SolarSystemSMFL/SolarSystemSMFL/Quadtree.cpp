@@ -12,7 +12,7 @@ using namespace std;
 using namespace sf;
 
 const int MAX_DEPTH = 105;
-const int THRESHOLD = 1;
+const int THRESHOLD = 5;
 
 #pragma region BoundingBox
 BoundingBox::BoundingBox(float x_, float y_, float width_, float height_)
