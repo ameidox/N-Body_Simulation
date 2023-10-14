@@ -1,5 +1,5 @@
 ﻿  main.cpp
-C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(85,11): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
-C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(124,44): warning C4305: 'initializing': truncation from 'double' to 'float'
-C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(136,23): warning C4018: '<': signed/unsigned mismatch
+C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(84,11): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(125,45): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\SolarSystemSMFL\main.cpp(137,23): warning C4018: '<': signed/unsigned mismatch
   SolarSystemSMFL.vcxproj -> C:\Users\AlonAm\Documents\GitHub\N-Body_Simulation\SolarSystemSMFL\Debug\SolarSystemSMFL.exe
