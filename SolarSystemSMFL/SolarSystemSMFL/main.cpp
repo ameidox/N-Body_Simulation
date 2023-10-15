@@ -10,60 +10,15 @@
 using namespace std;
 using namespace sf;
 
-const float GRAVITY_CONSTANT = 1.8f;
-const float SOFTNING = 3.5f;
-const float THETA = 0.5f;
-
-// Return squared magnitude
-float squaredMagnitude(const Vector2f& a) {
-    return a.x * a.x + a.y * a.y;
-}
-// Return squared distance
-float squaredDistance(const Vector2f& a, const Vector2f& b) {
-    Vector2f diff = a - b;
-    return squaredMagnitude(diff);
-}
-
-float wrappedDistance(float pos1, float pos2, float maxDimension) {
-    float directDist = std::abs(pos1 - pos2);
-
-    // If direct distance is already less than half of the dimension, return it
-    if (directDist <= maxDimension * 0.5f) {
-        return directDist;
-    }
-
-    // Otherwise, return the wrap-around distance
-    return maxDimension - directDist;
-}
-
-float wrappedDistance2D(const Vector2f& a, const Vector2f& b) {
-    const float DOMAIN_SIZE = 1000.0f;
-    const float HALF_DIMENSION = 500.0f;
-
-    auto wrappedDistanceComponent = [DOMAIN_SIZE, HALF_DIMENSION](float comp1, float comp2) -> float {
-        float dist = comp1 - comp2;
-        if (dist < -HALF_DIMENSION) dist += DOMAIN_SIZE;
-        else if (dist > HALF_DIMENSION) dist -= DOMAIN_SIZE;
-        return dist;
-    };
-
-    float xDist = wrappedDistanceComponent(a.x, b.x);
-    float yDist = wrappedDistanceComponent(a.y, b.y);
-
-    return std::sqrt(xDist * xDist + yDist * yDist);
-}
-
-
 
 // Implementation for UpdateVelocity
 void SolarObject::UpdateVelocity(Quadtree& tree) {
 
-    Vector2f force = tree.computeForce(*this, THETA, SOFTNING);
+    Vector2f force = tree.computeForce(*this);
 
 //    cout << force.x << " " << force.y << endl;
 
-    Vector2f velocityChange = force / this->mass;
-    velocity += velocityChange;
+    velocity += force;
 }
 
 // Implementation for UpdatePosition
@@ -80,8 +35,8 @@ void SolarObject::UpdatePosition() {
 }
 
 // Implementation for the constructor
-SolarObject::SolarObject(int mass_=1, const sf::Vector2f& position_, const sf::Vector2f& velocity_)
-    : mass(mass_), position(position_), velocity(velocity_) {
+SolarObject::SolarObject(const sf::Vector2f& position_, const sf::Vector2f& velocity_)
+    : position(position_), velocity(velocity_) {
 
 }
 
@@ -118,40 +73,16 @@ int main()
 
     vector<SolarObject> particles(1000);
 
-    const float center_x = 1000/2;
-    const float center_y = 1000/2;
-    const float initial_radius = 30;         // Start further from the center
-    const float spiral_arm_separation = 26;  // Increase distance between spiral arms
-    const float angle_increment = 0.00000155;     // Slightly smaller increment to space out particles more
-    const float random_radius_max = 60;      // Increase randomness in the radius
-    const float random_angle_max = 3; 
 
-    // This constant can be adjusted to change the rotation speed of the particles
-    const float rotation_speed_factor =0.2f;
 
-    float current_angle = 0;
+
 
     float timeElapsed = 0; // Total elapsed time
     int frameCount = 0;    // Number of frames elapsed
 
     for (int i = 0; i < particles.size(); i++)
     {
-        float random_radius = random_float(-random_radius_max, random_radius_max);
-        float random_angle = random_float(-random_angle_max, random_angle_max);
-
-        float r = initial_radius + spiral_arm_separation * current_angle + random_radius;
-        float theta = current_angle + random_angle;
-
-        float x = center_x + r * cos(theta);
-        float y = center_y + r * sin(theta);
-
-        // Compute the tangential velocity for rotation
-        Vector2f tangential_velocity(-sin(theta), cos(theta));
-        tangential_velocity *= sqrt(r) * rotation_speed_factor;  // Using sqrt(r) ensures outer particles rotate slower
-
-        particles[i] = SolarObject(1, Vector2f(x, y), tangential_velocity);
-
-        current_angle += angle_increment;
+        particles[i] = SolarObject(Vector2f(random_float(50.0f, 950.0f), random_float(50.0f, 950.0f)), Vector2f(0, 0));
     }
 
     Quadtree tree(BoundingBox(0, 0, 1000, 1000));
@@ -189,7 +120,7 @@ int main()
             for (auto& particle : particles) {
                 particle.UpdatePosition();
                 particlesVertexArray[index].position = particle.position;
-                particlesVertexArray[index].color = sf::Color(255, 255, 255,50);
+                particlesVertexArray[index].color = sf::Color(255, 255, 255,60);
                 ++index;
             }
             window.draw(particlesVertexArray);
@@ -198,15 +129,6 @@ int main()
 
             float deltaTime = clock.restart().asSeconds();
             timeElapsed += deltaTime;
-            frameCount++;
-
-            if (timeElapsed >= 1.0f) {  // update FPS once a second
-                fpsText.setString("FPS: " + std::to_string(frameCount));
-                frameCount = 0;
-                timeElapsed -= 1.0f;
-            }
-
-            window.draw(fpsText);
 
             window.display();
         }
