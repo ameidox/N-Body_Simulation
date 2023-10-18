@@ -4,7 +4,6 @@
 #include<array> 
 #include <random>
 #include <vector>
-#include <thread>
 #include "Quadtree.h"
 #include "main.h"
 
@@ -12,8 +11,6 @@ using namespace std;
 using namespace sf;
 
 const float GRAVITY_CONSTANT = 1.8f;
-const int NUM_THREADS = 12;
-
 
 // Return squared magnitude
 float squaredMagnitude(const Vector2f& a) {
@@ -59,7 +56,7 @@ float wrappedDistance2D(const Vector2f& a, const Vector2f& b) {
 // Implementation for UpdateVelocity
 void SolarObject::UpdateVelocity(Quad& rootNode) {
     const float softening = 3.5f;
-    const float theta = 0.65f;
+    const float theta = 0.5f;
 
     Vector2f force = rootNode.ComputeForce(this, theta, softening);
 
@@ -92,17 +89,7 @@ float random_float(float min, float max) {
     return distribution(generator);
 }
 
-void UpdateVelocitiesThreaded(int start, int end, std::vector<SolarObject>& particles, Quad& rootNode) {
-    for (int i = start; i < end; i++) {
-        particles[i].UpdateVelocity(rootNode);
-    }
-}
 
-void UpdatePositionsThreaded(int start, int end, std::vector<SolarObject>& particles) {
-    for (int i = start; i < end; i++) {
-        particles[i].UpdatePosition();
-    }
-}
 
 int main()
 {
@@ -175,8 +162,6 @@ int main()
 
     while (window.isOpen())
     {
-
-
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -199,29 +184,13 @@ int main()
                 particle.UpdateVelocity(rootQuad);
             }
 
-            // Multithreading for updating positions
-            std::vector<std::thread> threads;
-            size_t chunkSize = particles.size() / NUM_THREADS;
-
-            for (int i = 0; i < NUM_THREADS; ++i) {
-                threads.emplace_back([i, chunkSize, &particles]() {
-                    for (size_t j = i * chunkSize; j < (i + 1) * chunkSize; ++j) {
-                        particles[j].UpdatePosition();
-                    }
-                    });
+            int index = 0;
+            for (auto& particle : particles) {
+                particle.UpdatePosition();
+                particlesVertexArray[index].position = particle.position;
+                particlesVertexArray[index].color = sf::Color(255, 255, 255, 70);
+                ++index;
             }
-
-            // Join the threads after their task
-            for (auto& thread : threads) {
-                thread.join();
-            }
-
-            // Sequentially update the vertex array after all threads have completed
-            for (size_t i = 0; i < particles.size(); ++i) {
-                particlesVertexArray[i].position = particles[i].position;
-                particlesVertexArray[i].color = sf::Color(255, 255, 255, 70);
-            }
-
             window.draw(particlesVertexArray);
 
           //  rootQuad.Draw(window);
